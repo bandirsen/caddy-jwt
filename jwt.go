@@ -90,6 +90,24 @@ type JWTAuth struct {
 	//     meta_claims "IsAdmin -> is_admin" "group"
 	//
 	// is equal to {"IsAdmin": "is_admin", "group": "group"}.
+	//
+	// Nested claim 
+	// to for nested claim, we can use dot separated path, placeholder is mandatory
+	// e.g.
+	// custom claim :
+	//     	{
+	//			"iss": "myissuer"	   
+	//			"sub": "1234567"
+	//			... other standard claims
+	//
+	//			"app_metadata": {
+	//				"role": "admin"	
+	//			}
+	//     	}
+	//
+	// we can write 
+	// 		meta_claims "app_metadata.role -> role"
+	//
 	MetaClaims map[string]string `json:"meta_claims"`
 
 	logger *zap.Logger
@@ -278,8 +296,8 @@ func getUserMetadata(claims MapClaims, placeholdersMap map[string]string) map[st
 	}
 
 	metadata := make(map[string]string)
-	for claim, placeholder := range placeholdersMap {
-		claimValue, ok := claims[claim]
+	for claimPath, placeholder := range placeholdersMap {
+		claimValue, ok := getClaimValue(claims, claimPath)
 		if !ok {
 			metadata[placeholder] = ""
 			continue
@@ -288,6 +306,23 @@ func getUserMetadata(claims MapClaims, placeholdersMap map[string]string) map[st
 	}
 
 	return metadata
+}
+
+func getClaimValue(claims map[string]interface{}, claimPath string) (interface{}, bool) {
+
+	var obj interface{} = claims
+	var val interface{} = nil
+
+	parts := strings.Split(claimPath, ".")
+	for _, p := range parts {
+		if v, ok := obj.(map[string]interface{}); ok {
+			obj = v[p]
+			val = obj
+		} else {
+			return nil, false
+		}
+	}
+	return val, true
 }
 
 func stringify(val interface{}) string {

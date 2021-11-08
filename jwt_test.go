@@ -399,11 +399,14 @@ func TestAuthenticate_PopulateUserMetadata(t *testing.T) {
 	ja := &JWTAuth{
 		SignKey: TestSignKey,
 		MetaClaims: map[string]string{
-			"jti":          "jti",
-			"IsAdmin":      "is_admin",
-			"registerTime": "registered_at",
-			"absent":       "absent", // not found in JWT payload, final ""
-			"groups":       "groups", // unsupported array type, final ""
+			"jti":               "jti",
+			"IsAdmin":           "is_admin",
+			"registerTime":      "registered_at",
+			"absent":            "absent", // not found in JWT payload, final ""
+			"groups":            "groups", // unsupported array type, final ""
+			"user_info.roles.role1": "role", // access claim with path
+			"user_info.roles": "badpath1", // access claim with bad path 1
+			"user_info.roles.role1.badpath": "badpath2", // access claim with bad path 2			
 		},
 		logger: testLogger,
 	}
@@ -415,12 +418,13 @@ func TestAuthenticate_PopulateUserMetadata(t *testing.T) {
 		"IsAdmin":      true,
 		"registerTime": time.Date(2000, 1, 2, 15, 23, 18, 0, time.UTC),
 		"groups":       []string{"csgo", "dota2"},
+		"user_info":    map[string]map[string]string{"roles": {"role1": "admin"}},
 	}
 	rw := httptest.NewRecorder()
 	r, _ := http.NewRequest("GET", "/", nil)
 	r.Header.Add("Authorization", issueTokenString(claimsWithMetadata))
 	gotUser, authenticated, err := ja.Authenticate(rw, r)
-	assert.Nil(t, err)
+	assert.Nil(t, err)	
 	assert.True(t, authenticated)
 	assert.Equal(t, gotUser.ID, "ggicci")
 	assert.Equal(t, gotUser.Metadata["jti"], "a976475a-186a-4c1f-b182-95b3f886e2b4")
@@ -428,6 +432,9 @@ func TestAuthenticate_PopulateUserMetadata(t *testing.T) {
 	assert.Equal(t, gotUser.Metadata["registered_at"], "2000-01-02T15:23:18Z")
 	assert.Equal(t, gotUser.Metadata["absent"], "")
 	assert.Equal(t, gotUser.Metadata["groups"], "")
+	assert.Equal(t, gotUser.Metadata["role"], "admin")
+	assert.Equal(t, gotUser.Metadata["badpath1"], "")
+	assert.Equal(t, gotUser.Metadata["badpath2"], "")	
 }
 
 type ThingNotStringer struct{}
