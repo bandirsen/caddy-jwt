@@ -24,7 +24,9 @@ func init() {
 //    }
 func parseCaddyfile(h httpcaddyfile.Helper) (caddyhttp.MiddlewareHandler, error) {
 	var ja JWTAuth
-
+	//default user2header is false
+	ja.User2header = false
+		
 	for h.Next() {
 		for h.NextBlock(0) {
 			opt := h.Val()
@@ -71,9 +73,13 @@ func parseCaddyfile(h httpcaddyfile.Helper) (caddyhttp.MiddlewareHandler, error)
 					}
 					ja.MetaClaims[claim] = placeholder
 				}
-			case "header_first":
-				return nil, h.Err("option header_first deprecated, the priority now defaults to from_query > from_header > from_cookies")
 
+			case "user2header":	
+				ja.User2header = true
+
+			case "header_first":
+				return nil, h.Err("option header_first deprecated, the priority now defaults to from_query > from_header > from_cookies")		
+				
 			default:
 				return nil, h.Errf("unrecognized option: %s", opt)
 			}

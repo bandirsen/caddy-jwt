@@ -109,6 +109,10 @@ type JWTAuth struct {
 	// 		meta_claims "app_metadata.role -> role"
 	//
 	MetaClaims map[string]string `json:"meta_claims"`
+	
+	//User2header add http.auth.user value as header for subsequence request, 
+	//so upstream can read it from header
+	User2header bool `json:"user2header"` 
 
 	logger *zap.Logger
 }
@@ -230,6 +234,18 @@ func (ja *JWTAuth) Authenticate(rw http.ResponseWriter, r *http.Request) (User, 
 			ID:       gotUserID,
 			Metadata: getUserMetadata(gotClaims, ja.MetaClaims),
 		}
+
+		// if user2header config is set
+		// add user information to header
+		// User ID will be added to request header as "x-caddyauth-userid"
+		// All User Metadata will be added to request header as "x-caddyauth-usermetadata-{metadata name}"
+		if ja.User2header {
+			r.Header.Set("x-caddyauth-userid", user.ID)
+			for metadata, value := range user.Metadata {
+				r.Header.Set(fmt.Sprintf("x-caddyauth-usermetadata-%s", metadata), value)
+			}
+		}
+
 		logger.Info("user authenticated", zap.String("user_claim", claimName), zap.String("id", gotUserID))
 		return user, true, nil
 	}
